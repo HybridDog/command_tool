@@ -1,14 +1,40 @@
 local load_time_start = os.clock()
 
---[[	look of the meta
-left aux1
-/me ha
-/me not here
-sneak aux1
-/help
-]]
+-- needs to be helpful
+local default_cmdlist =
+	"RMB right left\n"..
+	"/me tests\n"..
+	"/me still tests\n"..
+	"LMB\n"..
+	"/help cwct\n"..
+	"drop sneak aux1 down up jump\n"..
+	"/me pressed a lot keys at once\n"..
+	"# Currently the tool works on dropping, placing and using\n"..
+	"# drop RMB LMB up down left right jump sneak aux1\n"
 
+-- returns the metadata of the tool or the default list
+local function get_metadata(itemstack, player)
+	if not player
+	or not itemstack then
+		return default_cmdlist
+	end
+
+	local item = itemstack:to_table()
+	local metadata = item.metadata
+	if not metadata
+	or metadata == "" then
+		return default_cmdlist
+	end
+
+	return metadata
+end
+
+-- runs the chatcommands of the tool
 local function run_commands(metadata, player, force_controls)
+	if type(metadata) ~= "string" then
+		-- the itemstack was given
+		metadata = get_metadata(metadata, player)
+	end
 	local pcontrol = player:get_player_control()
 	for _,i in pairs(force_controls) do
 		pcontrol[i] = true
@@ -17,10 +43,13 @@ local function run_commands(metadata, player, force_controls)
 	local commands = {}
 	for _,i in ipairs(string.split(metadata, "\n")) do
 		if i ~= "" then
-			if string.sub(i, 1, 1) == "/" then
+			local beg = string.sub(i, 1, 1)
+			if beg == "/" then
 				if keys_pressed then
 					table.insert(commands, i)
 				end
+			elseif beg == "#" then
+				keys_pressed = false
 			else
 				keys_pressed = true
 				local current_keys = string.split(i, " ")
@@ -52,114 +81,88 @@ local function run_commands(metadata, player, force_controls)
 	minetest.chat_send_player(pname, "Chatcommands executed.")
 end
 
-local function get_metadata(itemstack, player)
-	if not player
-	or not itemstack then
-		return
-	end
-
-	local item = itemstack:to_table()
-	local metadata = item.metadata
-	if not metadata
-	or metadata == "" then
-		return
-	end
-
-	return metadata
-end
-
+-- adds the item
 minetest.register_craftitem("command_tool:tool", {
-	description = "command tool",
+	description = "command tool\rconfigure with /cwct",
 	inventory_image = "command_tool.png",
 	--range = 0,
 	stack_max = 1,
 	on_place = function(itemstack, player)
-		local metadata = get_metadata(itemstack, player)
-		if metadata then
-			run_commands(metadata, player, {"RMB"})
-		end
+		run_commands(itemstack, player, {"RMB"})
 	end,
 	on_use = function(itemstack, player)
-		local metadata = get_metadata(itemstack, player)
-		if metadata then
-			run_commands(metadata, player, {"LMB"})
-		end
+		run_commands(itemstack, player, {"LMB"})
 	end,
 	on_drop = function(itemstack, player)
-		local metadata = get_metadata(itemstack, player)
-		if metadata then
-			run_commands(metadata, player, {"drop"})
-		end
+		run_commands(itemstack, player, {"drop"})
 	end,
 })
 
--- needs to be helpful
-local default_cmdlist =
-	"jump\n"..
-	"right left RMB\n"..
-	"/me tests\n"..
-	"/me still tests\n"..
-	"LMB\n"..
-	"/help cwct\n"..
-	"sneak\n"..
-	"aux1\n"..
-	"down\n"..
-	"up\n"
-
+-- shows the configuration formspec
 local function configure_command_tool(pname, player)
 	local item = player:get_wielded_item()
 	if item:get_name() ~= "command_tool:tool" then
 		minetest.chat_send_player(pname, "You need to wear the command tool to configure it…")
 		return
 	end
-	local metadata = get_metadata(item, player) or default_cmdlist
+	local metadata = get_metadata(item, player)
 	minetest.show_formspec(pname, "command_tool:formspec",
-		"size[5,6]"..
-		"textarea[0.3,0;5,6;text;;"..minetest.formspec_escape(metadata).."]"..
-		"button[0.3,5;2,2;save;save]"..
-		"button[2.6,5;2,2;help;help]"
+		"size[8,8]"..
+		"textarea[0.3,0;8,9;text;;"..minetest.formspec_escape(metadata).."]"
 	)
 end
 
+-- sets the new configuration to the tool
+local function set_config(player, text)
+	if not player
+	or not text
+	or text == "" then
+		return
+	end
+	local item = player:get_wielded_item()
+	if item:get_name() ~= "command_tool:tool" then
+		local pname = player:get_player_name()
+		minetest.chat_send_player(pname, "Something went wrong.")
+		return
+	end
+	item:set_metadata(text)
+	player:set_wielded_item(item)
+	minetest.chat_send_player(pname, "configured wielded command tool")
+	return true
+end
+
+-- when the player exits the config formspec
 minetest.register_on_player_receive_fields(function(player, formname, fields)
 	if formname ~= "command_tool:formspec" then
 		return
 	end
 	local pname = player:get_player_name()
-	if not fields.save then
-		return
-	end
 	local text = fields.text
-	if not text then
-		minetest.chat_send_player(pname, "No text?")
+	if not text
+	or text == "" then
 		return
 	end
 	minetest.after(0, function()
-		local player = minetest.get_player_by_name(pname)
-		if not player then
-			return
-		end
-		local item = player:get_wielded_item()
-		if item:get_name() ~= "command_tool:tool" then
-			minetest.chat_send_player(pname, "Something went wrong.")
-			return
-		end
-		item:set_metadata(text)
-		player:set_wielded_item(item)
-		minetest.chat_send_player(pname, "configured wielded command tool")
+		set_config(minetest.get_player_by_name(pname), text)
 	end)
 end)
 
+-- adds the configuration chatcommand
 minetest.register_chatcommand("cwct", {
-	params = "",
+	params = "[newdata]",
 	description = "configure wielded command tool",
 	privs = {interact = true},
-	func = function(pname)
-		local player = minetest.get_player_by_name(pname)
+	func = function(name, param)
+		local player = minetest.get_player_by_name(name)
 		if not player then
 			return false, "Player not found"
 		end
-		configure_command_tool(pname, player)
+		if param
+		and param ~= "" then
+			set_config(player, param)
+			return
+		end
+		configure_command_tool(name, player)
 	end,
 })
 
