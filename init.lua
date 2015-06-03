@@ -115,7 +115,7 @@ local function configure_command_tool(pname, player)
 	local metadata = get_metadata(item, player) or default_cmdlist
 	minetest.show_formspec(pname, "command_tool:formspec",
 		"size[5,6]"..
-		"textarea[0.3,0;5,6;text;;"..metadata.."]"..
+		"textarea[0.3,0;5,6;text;;"..minetest.formspec_escape(metadata).."]"..
 		"button[0.3,5;2,2;save;save]"..
 		"button[2.6,5;2,2;help;help]"
 	)
