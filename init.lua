@@ -107,8 +107,9 @@ local function configure_command_tool(pname, player)
 	end
 	local metadata = get_metadata(item, player)
 	minetest.show_formspec(pname, "command_tool:formspec",
-		"size[8,8]"..
-		"textarea[0.3,0;8,9;text;;"..minetest.formspec_escape(metadata).."]"
+		"size[10,10]"..
+		"textarea[0.3,0;10,10.5;text;;"..minetest.formspec_escape(metadata).."]"..
+		"button[0,9;10,2;;     Save\rconfiguration]"
 	)
 end
 
@@ -119,9 +120,9 @@ local function set_config(player, text)
 	or text == "" then
 		return
 	end
+	local pname = player:get_player_name()
 	local item = player:get_wielded_item()
 	if item:get_name() ~= "command_tool:tool" then
-		local pname = player:get_player_name()
 		minetest.chat_send_player(pname, "Something went wrong.")
 		return
 	end
@@ -142,9 +143,9 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	or text == "" then
 		return
 	end
-	minetest.after(0, function()
+	minetest.after(0.1, function(pname)
 		set_config(minetest.get_player_by_name(pname), text)
-	end)
+	end, pname)
 end)
 
 -- adds the configuration chatcommand
