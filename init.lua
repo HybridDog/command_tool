@@ -19,8 +19,7 @@ local function get_metadata(itemstack, player)
 		return default_cmdlist
 	end
 
-	local item = itemstack:to_table()
-	local metadata = item.metadata
+	local metadata = itemstack:get_meta():get_string"commands"
 	if not metadata
 	or metadata == "" then
 		return default_cmdlist
@@ -115,6 +114,7 @@ end
 
 -- sets the new configuration to the tool
 local function set_config(player, text)
+	print("set_c", text)
 	if not player
 	or not text
 	or text == "" then
@@ -126,7 +126,8 @@ local function set_config(player, text)
 		minetest.chat_send_player(pname, "Something went wrong.")
 		return
 	end
-	item:set_metadata(text)
+	print("Settng", text)
+	item:get_meta():set_string("commands", text)
 	player:set_wielded_item(item)
 	minetest.chat_send_player(pname, "configured wielded command tool")
 	return true
@@ -134,6 +135,7 @@ end
 
 -- when the player exits the config formspec
 minetest.register_on_player_receive_fields(function(player, formname, fields)
+	print(dump(fields), formname)
 	if formname ~= "command_tool:formspec" then
 		return
 	end
