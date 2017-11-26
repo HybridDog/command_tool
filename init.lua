@@ -19,8 +19,7 @@ local function get_metadata(itemstack, player)
 		return default_cmdlist
 	end
 
-	local item = itemstack:to_table()
-	local metadata = item.metadata
+	local metadata = itemstack:get_meta():get_string"commands"
 	if not metadata
 	or metadata == "" then
 		return default_cmdlist
@@ -126,7 +125,7 @@ local function set_config(player, text)
 		minetest.chat_send_player(pname, "Something went wrong.")
 		return
 	end
-	item:set_metadata(text)
+	item:get_meta():set_string("commands", text)
 	player:set_wielded_item(item)
 	minetest.chat_send_player(pname, "configured wielded command tool")
 	return true
