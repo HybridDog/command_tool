@@ -1,15 +1,13 @@
-local load_time_start = os.clock()
-
 -- needs to be helpful
 local default_cmdlist =
-	"RMB right left\n"..
-	"/me tests\n"..
-	"/me still tests\n"..
-	"LMB\n"..
-	"/help cwct\n"..
-	"drop sneak aux1 down up jump\n"..
-	"/me pressed a lot keys at once\n"..
-	"# Currently the tool works on dropping, placing and using\n"..
+	"RMB right left\n" ..
+	"/me tests the command tool\n" ..
+	"/me pressed right mouse button, right and left at once\n" ..
+	"LMB\n" ..
+	"/help cwct\n" ..
+	"drop sneak aux1 down up jump\n" ..
+	"/me pressed a lot keys at once\n" ..
+	"# Currently the tool works on dropping, placing and using\n" ..
 	"# drop RMB LMB up down left right jump sneak aux1\n"
 
 -- returns the metadata of the tool or the default list
@@ -35,28 +33,31 @@ local function run_commands(metadata, player, force_controls)
 		metadata = get_metadata(metadata, player)
 	end
 	local pcontrol = player:get_player_control()
-	for _,i in pairs(force_controls) do
-		pcontrol[i] = true
+	for i = 1,#force_controls do
+		pcontrol[force_controls[i]] = true
 	end
 	local keys_pressed = false
 	local commands = {}
-	for _,i in ipairs(string.split(metadata, "\n")) do
-		if i ~= "" then
-			local beg = string.sub(i, 1, 1)
-			if beg == "/" then
-				if keys_pressed then
-					table.insert(commands, i)
-				end
-			elseif beg == "#" then
-				keys_pressed = false
-			else
-				keys_pressed = true
-				local current_keys = string.split(i, " ")
-				for _,i in pairs(current_keys) do
-					if not pcontrol[i] then
-						keys_pressed = false
-						break
-					end
+	local lines = metadata:split"\n"
+	for i = 1,#lines do
+		local line = lines[i]
+		local first_char = line:sub(1, 1)
+		if first_char == ""
+		or first_char == "#" then
+			-- comment or empty line, ignore
+		elseif first_char == "/" then
+			-- chatcommand
+			if keys_pressed then
+				commands[#commands+1] = line
+			end
+		else
+			-- keys requirement
+			keys_pressed = true
+			local required_keys = line:split" "
+			for i = 1,#required_keys do
+				if not pcontrol[required_keys[i]] then
+					keys_pressed = false
+					break
 				end
 			end
 		end
@@ -64,19 +65,21 @@ local function run_commands(metadata, player, force_controls)
 
 	local pname = player:get_player_name()
 
-	-- abort if no command is found
+	-- abort if no command is to be executed
 	if not commands[1] then
 		minetest.chat_send_player(pname, "No chatcommands executed.")
 		return
 	end
 
-	for _,cmd in ipairs(commands) do
-		for _,func in pairs(minetest.registered_on_chat_messages) do
-			func(pname, cmd)
+	for i = 1,#commands do
+		local cmd = commands[i]
+		for i = 1,#minetest.registered_on_chat_messages do
+			minetest.registered_on_chat_messages[i](pname, cmd)
 		end
 	end
 
-	minetest.log("info", "[command_tool] "..pname.." used the command tool.")
+	minetest.log("info",
+		"[command_tool] " .. pname .. " used the command tool.")
 	minetest.chat_send_player(pname, "Chatcommands executed.")
 end
 
@@ -101,13 +104,15 @@ minetest.register_craftitem("command_tool:tool", {
 local function configure_command_tool(pname, player)
 	local item = player:get_wielded_item()
 	if item:get_name() ~= "command_tool:tool" then
-		minetest.chat_send_player(pname, "You need to wear the command tool to configure it…")
+		minetest.chat_send_player(pname,
+			"You need to wear the command tool to configure it…")
 		return
 	end
 	local metadata = get_metadata(item, player)
 	minetest.show_formspec(pname, "command_tool:formspec",
 		"size[10,10]"..
-		"textarea[0.3,0;10,10.5;text;;"..minetest.formspec_escape(metadata).."]"..
+		"textarea[0.3,0;10,10.5;text;;" ..
+		minetest.formspec_escape(metadata) .. "]" ..
 		"button[0,9;10,2;;     Save\rconfiguration]"
 	)
 end
@@ -165,12 +170,3 @@ minetest.register_chatcommand("cwct", {
 		configure_command_tool(name, player)
 	end,
 })
-
-
-local time = math.floor(tonumber(os.clock()-load_time_start)*100+0.5)/100
-local msg = "[command_tool] loaded after ca. "..time
-if time > 0.05 then
-	print(msg)
-else
-	minetest.log("info", msg)
-end
