@@ -118,9 +118,9 @@ end
 minetest.register_craftitem("command_tool:tool", {
 	description = "command tool\rconfigure with /cwct",
 	inventory_image = "command_tool.png",
-	--range = 0,
+	range = 0,
 	stack_max = 1,
-	on_place = function(itemstack, player)
+	on_secondary_use = function(itemstack, player)
 		run_commands(itemstack, player, {"RMB"})
 	end,
 	on_use = function(itemstack, player)
