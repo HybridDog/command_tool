@@ -1,3 +1,11 @@
+local known_keys = {"drop", "RMB", "LMB", "up", "down", "left", "right", "jump",
+	"sneak", "aux1"}
+local known_keys_str = table.concat(known_keys, ", ")
+for i = 1,#known_keys do
+	known_keys[known_keys[i]] = true
+	known_keys[i] = nil
+end
+
 -- needs to be helpful
 local default_cmdlist =
 	"RMB right left\n" ..
@@ -10,7 +18,16 @@ local default_cmdlist =
 	"drop sneak aux1 down up jump\n" ..
 	"/me pressed a lot keys at once\n" ..
 	"# Currently the tool works on dropping, placing and using\n" ..
-	"# drop RMB LMB up down left right jump sneak aux1\n"
+	"# " .. known_keys_str .. "\n"
+
+-- used when the player used an unknown key
+local function handle_invalid_key(pname, key)
+	if not known_keys[key] then
+		minetest.chat_send_player(pname, "Unknown key: \"" .. key ..
+			"\", available keys: " .. known_keys_str)
+		return true
+	end
+end
 
 -- returns the metadata of the tool or the default list
 local function get_metadata(itemstack, player)
@@ -59,10 +76,16 @@ local function run_commands(metadata, player, force_controls)
 			for i = 1,#required_keys do
 				local key = required_keys[i]
 				if key:sub(1, 1) == "!" then
-					if pcontrol[key:sub(2)] then
+					key = key:sub(2)
+					if handle_invalid_key(pname, key) then
+						return
+					end
+					if pcontrol[key] then
 						keys_pressed = false
 						break
 					end
+				elseif handle_invalid_key(pname, key) then
+					return
 				elseif not pcontrol[key] then
 					keys_pressed = false
 					break
