@@ -3,6 +3,8 @@ local default_cmdlist =
 	"RMB right left\n" ..
 	"/me tests the command tool\n" ..
 	"/me pressed right mouse button, right and left at once\n" ..
+	"RMB right !left\n" ..
+	"/me pressed right mouse button, right, but not left at once\n" ..
 	"LMB\n" ..
 	"/help cwct\n" ..
 	"drop sneak aux1 down up jump\n" ..
@@ -55,7 +57,13 @@ local function run_commands(metadata, player, force_controls)
 			keys_pressed = true
 			local required_keys = line:split" "
 			for i = 1,#required_keys do
-				if not pcontrol[required_keys[i]] then
+				local key = required_keys[i]
+				if key:sub(1, 1) == "!" then
+					if pcontrol[key:sub(2)] then
+						keys_pressed = false
+						break
+					end
+				elseif not pcontrol[key] then
 					keys_pressed = false
 					break
 				end
