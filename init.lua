@@ -59,7 +59,7 @@ local function run_commands(metadata, player, force_controls)
 	local commands = {}
 	local lines = metadata:split"\n"
 	for i = 1,#lines do
-		local line = lines[i]
+		local line = lines[i]:trim()
 		local first_char = line:sub(1, 1)
 		if first_char == ""
 		or first_char == "#" then
