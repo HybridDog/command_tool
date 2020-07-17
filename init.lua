@@ -141,10 +141,11 @@ local function configure_command_tool(pname, player)
 	end
 	local metadata = get_metadata(item, player)
 	minetest.show_formspec(pname, "command_tool:formspec",
-		"size[10,10]"..
-		"textarea[0.3,0;10,10.5;text;;" ..
-		minetest.formspec_escape(metadata) .. "]" ..
-		"button[0,9;10,2;;     Save\rconfiguration]"
+		"formspec_version[3]" ..
+		"size[10,10]" ..
+		"textarea[0.3,0.3;9.4,8.1;text;;" ..
+			minetest.formspec_escape(metadata) .. "]" ..
+		"button[0.3,8.7;9.4,1.0;;Save configuration]"
 	)
 end
 
