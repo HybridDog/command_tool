@@ -55,26 +55,24 @@ local function run_commands(metadata, player, force_controls)
 	for i = 1,#force_controls do
 		pcontrol[force_controls[i]] = true
 	end
+	local pname = player:get_player_name()
 	local keys_pressed = false
 	local commands = {}
 	local lines = metadata:split"\n"
-	for i = 1,#lines do
-		local line = lines[i]:trim()
+	for li = 1, #lines do
+		local line = lines[li]:trim()
 		local first_char = line:sub(1, 1)
-		if first_char == ""
-		or first_char == "#" then
-			-- comment or empty line, ignore
-		elseif first_char == "/" then
+		if first_char == "/" then
 			-- chatcommand
 			if keys_pressed then
 				commands[#commands+1] = line
 			end
-		else
+		elseif first_char ~= "" and first_char ~= "#" then
 			-- keys requirement
 			keys_pressed = true
 			local required_keys = line:split" "
-			for i = 1,#required_keys do
-				local key = required_keys[i]
+			for ki = 1, #required_keys do
+				local key = required_keys[ki]
 				if key:sub(1, 1) == "!" then
 					key = key:sub(2)
 					if handle_invalid_key(pname, key) then
@@ -92,9 +90,8 @@ local function run_commands(metadata, player, force_controls)
 				end
 			end
 		end
+		-- else it's a comment or empty line, ignore
 	end
-
-	local pname = player:get_player_name()
 
 	-- abort if no command is to be executed
 	if not commands[1] then
@@ -102,10 +99,10 @@ local function run_commands(metadata, player, force_controls)
 		return
 	end
 
-	for i = 1,#commands do
-		local cmd = commands[i]
-		for i = 1,#minetest.registered_on_chat_messages do
-			minetest.registered_on_chat_messages[i](pname, cmd)
+	for ci = 1, #commands do
+		local cmd = commands[ci]
+		for mi = 1, #minetest.registered_on_chat_messages do
+			minetest.registered_on_chat_messages[mi](pname, cmd)
 		end
 	end
 
@@ -179,9 +176,9 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	or text == "" then
 		return
 	end
-	minetest.after(0.1, function(pname)
+	minetest.after(0.1, function()
 		set_config(minetest.get_player_by_name(pname), text)
-	end, pname)
+	end)
 end)
 
 -- adds the configuration chatcommand
