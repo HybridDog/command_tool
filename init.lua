@@ -1,3 +1,6 @@
+local path = minetest.get_modpath(minetest.get_current_modname())
+local template_engine = dofile(path .. "/template_engine4.lua")
+
 local known_keys = {"drop", "RMB", "LMB", "up", "down", "left", "right", "jump",
 	"sneak", "aux1"}
 local known_keys_str = table.concat(known_keys, ", ")
@@ -8,26 +11,20 @@ end
 
 -- needs to be helpful
 local default_cmdlist =
-	"RMB right left\n" ..
-	"/me tests the command tool\n" ..
-	"/me pressed right mouse button, right and left at once\n" ..
-	"RMB right !left\n" ..
-	"/me pressed right mouse button, right, but not left at once\n" ..
 	"LMB\n" ..
 	"/help cwct\n" ..
-	"drop sneak aux1 down up jump\n" ..
-	"/me pressed a lot keys at once\n" ..
-	"# Currently the tool works on dropping, placing and using\n" ..
+	"/cwct\n" ..
+	"\n" ..
+	"RMB right left\n" ..
+	"/me pressed right mouse button, right and left at once\n" ..
+	"\n" ..
+	"RMB right !left\n" ..
+	"/me pressed right mouse button, right, but not left at once\n" ..
+	"\n" ..
+	"# The tool works when it is dropped, placed (RMB) or used (LMB).\n" ..
+	"# Supported keys and buttons:\n" ..
 	"# " .. known_keys_str .. "\n"
 
--- used when the player used an unknown key
-local function handle_invalid_key(pname, key)
-	if not known_keys[key] then
-		minetest.chat_send_player(pname, "Unknown key: \"" .. key ..
-			"\", available keys: " .. known_keys_str)
-		return true
-	end
-end
 
 -- returns the metadata of the tool or the default list
 local function get_metadata(itemstack, player)
@@ -45,20 +42,12 @@ local function get_metadata(itemstack, player)
 	return metadata
 end
 
--- runs the chatcommands of the tool
-local function run_commands(metadata, player, force_controls)
-	if type(metadata) ~= "string" then
-		-- the itemstack was given
-		metadata = get_metadata(metadata, player)
-	end
-	local pcontrol = player:get_player_control()
-	for i = 1,#force_controls do
-		pcontrol[force_controls[i]] = true
-	end
-	local pname = player:get_player_name()
+-- Parse code for the "simple" case to execute commands conditioned on pressed
+-- keys
+local function get_commands_simple(source, pcontrol)
 	local keys_pressed = false
 	local commands = {}
-	local lines = metadata:split"\n"
+	local lines = source:split"\n"
 	for li = 1, #lines do
 		local line = lines[li]:trim()
 		local first_char = line:sub(1, 1)
@@ -75,15 +64,17 @@ local function run_commands(metadata, player, force_controls)
 				local key = required_keys[ki]
 				if key:sub(1, 1) == "!" then
 					key = key:sub(2)
-					if handle_invalid_key(pname, key) then
-						return
+					if not known_keys[key] then
+						return false, "Unknown key: \"" .. key ..
+							"\", available keys: " .. known_keys_str
 					end
 					if pcontrol[key] then
 						keys_pressed = false
 						break
 					end
-				elseif handle_invalid_key(pname, key) then
-					return
+				elseif not known_keys[key] then
+					return false, "Unknown key: \"" .. key ..
+						"\", available keys: " .. known_keys_str
 				elseif not pcontrol[key] then
 					keys_pressed = false
 					break
@@ -91,6 +82,65 @@ local function run_commands(metadata, player, force_controls)
 			end
 		end
 		-- else it's a comment or empty line, ignore
+	end
+	return commands
+end
+
+-- Get a list of to-be-executed chat commands from the user-provided string
+local function get_commands(source, pname, controls)
+	local source_type = "simple"
+	if source:sub(1,2) == "#!" then
+		local lb = source:find("\n")
+		if not lb then
+			return false, "Missing \n after the first line"
+		end
+		local bang = source:sub(3, lb - 1):trim()
+		source_type = bang:match("%S+") or ""
+		source = source:sub(lb + 1)
+	end
+	if source_type == "simple" then
+		return get_commands_simple(source, controls)
+	end
+	if source_type == "lua_template" then
+		if not minetest.get_player_privs(pname).server then
+			return false, "server privilege is required for Lua templating"
+		end
+		local lines, err = template_engine.compile(source, {control = controls})
+		if not lines then
+			return false, err
+		end
+		local commands = {}
+		lines = lines:split("\n")
+		for i = 1, #lines do
+			local cmd = lines[i]:trim()
+			if cmd:sub(1, 1) == "/" then
+				commands[#commands+1] = cmd
+			elseif cmd ~= "" then
+				return false, 'Found a non-chatcommand line: "' .. cmd .. '"'
+			end
+		end
+		return commands
+	end
+	return false, 'Invalid code type: "' .. source_type ..
+		'". Supported are "lua_template" and "simple" (default).'
+end
+
+-- runs the chatcommands of the tool
+local function run_commands(source, player, force_controls)
+	if type(source) ~= "string" then
+		-- the itemstack was given
+		source = get_metadata(source, player)
+	end
+	local pcontrol = player:get_player_control()
+	for i = 1,#force_controls do
+		pcontrol[force_controls[i]] = true
+	end
+	local pname = player:get_player_name()
+	local commands, err = get_commands(source, pname, pcontrol)
+	if not commands then
+		minetest.chat_send_player(pname, "Chatcommand execution has failed: " ..
+			err)
+		return
 	end
 
 	-- abort if no command is to be executed

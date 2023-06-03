@@ -1,1 +1,4 @@
-WTFPL
+MIT
+
+The template engine is copied from https://nachtimwald.com/2022/08/28/lua-template-engine-yet-again/
+and has MIT license, too.
