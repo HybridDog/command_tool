@@ -1,4 +1,5 @@
 read_globals = {
 	"minetest",
-	"vector"
+	"vector",
+	"safer_lua"
 }

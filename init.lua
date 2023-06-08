@@ -102,10 +102,14 @@ local function get_commands(source, pname, controls)
 		return get_commands_simple(source, controls)
 	end
 	if source_type == "lua_template" then
-		if not minetest.get_player_privs(pname).server then
-			return false, "server privilege is required for Lua templating"
+		local use_safer_lua = not minetest.get_player_privs(pname).server
+		if use_safer_lua
+		and not minetest.global_exists("safer_lua") then
+			return false, "server privilege is required for Lua " ..
+				"templating if the safer_lua mod is not installed"
 		end
-		local lines, err = template_engine.compile(source, {control = controls})
+		local lines, err = template_engine.compile(source, {control = controls},
+			use_safer_lua)
 		if not lines then
 			return false, err
 		end
